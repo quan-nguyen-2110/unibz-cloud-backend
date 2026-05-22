@@ -1,0 +1,66 @@
+variable "aws_region" {
+  type        = string
+  description = "AWS region"
+  default     = "eu-central-1"
+}
+
+variable "project_name" {
+  type        = string
+  description = "Resource name prefix"
+  default     = "squadup"
+}
+
+variable "environment" {
+  type        = string
+  description = "Environment tag (dev, prod)"
+  default     = "dev"
+}
+
+variable "vpc_cidr" {
+  type    = string
+  default = "10.0.0.0/16"
+}
+
+variable "container_image" {
+  type        = string
+  description = "ECR image URI (tag or digest) for API task"
+  default     = ""
+}
+
+variable "ecs_cpu" {
+  type    = number
+  default = 512
+}
+
+variable "ecs_memory" {
+  type    = number
+  default = 1024
+}
+
+variable "ecs_desired_count" {
+  type    = number
+  default = 1
+}
+
+variable "cognito_callback_urls" {
+  type    = list(string)
+  default = ["http://localhost:3000/callback"]
+}
+
+variable "cognito_logout_urls" {
+  type    = list(string)
+  default = ["http://localhost:3000/"]
+}
+
+# AWS Academy Learner Lab: students cannot create IAM roles — reuse LabRole for ECS.
+variable "use_lab_role" {
+  type        = bool
+  description = "When true, ECS uses existing LabRole instead of creating squadup-ecs-* roles"
+  default     = false
+}
+
+variable "lab_role_name" {
+  type        = string
+  description = "Pre-provisioned lab role name (usually LabRole)"
+  default     = "LabRole"
+}

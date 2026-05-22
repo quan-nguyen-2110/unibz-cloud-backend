@@ -1,0 +1,9 @@
+aws_region          = "eu-central-1"
+project_name        = "squadup"
+environment         = "dev"
+ecs_desired_count   = 1
+# After first push: container_image = "<account>.dkr.ecr.eu-central-1.amazonaws.com/squadup-api:latest"
+
+# AWS Academy Learner Lab (skip custom IAM roles):
+# use_lab_role  = true
+# lab_role_name = "LabRole"

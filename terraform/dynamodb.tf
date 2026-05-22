@@ -1,0 +1,78 @@
+resource "aws_dynamodb_table" "users" {
+  name         = "${var.project_name}-users"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+}
+
+resource "aws_dynamodb_table" "plans" {
+  name         = "${var.project_name}-plans"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "planId"
+  range_key    = "createdAt"
+
+  attribute {
+    name = "planId"
+    type = "S"
+  }
+
+  attribute {
+    name = "createdAt"
+    type = "S"
+  }
+
+  attribute {
+    name = "status"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "StatusIndex"
+    hash_key        = "status"
+    range_key       = "createdAt"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+}
+
+resource "aws_dynamodb_table" "tap_ins" {
+  name         = "${var.project_name}-tap-ins"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "planId"
+  range_key    = "userId"
+
+  attribute {
+    name = "planId"
+    type = "S"
+  }
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+}
+
+resource "aws_dynamodb_table" "friends" {
+  name         = "${var.project_name}-friendships"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+  range_key    = "friendId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  attribute {
+    name = "friendId"
+    type = "S"
+  }
+}
