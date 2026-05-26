@@ -7,24 +7,23 @@ const { PutCommand, QueryCommand, DeleteCommand } = require('@aws-sdk/lib-dynamo
 const { ddb } = require('../services/dynamo');
 const { getUserId } = require('../middleware/auth');
 const { config } = require('../lib/config');
-const { handleValidation } = require('../lib/validate');
+const { handleValidation, userIdField } = require('../lib/validate');
+const { loadProfiles } = require('../lib/userProfiles');
+const { listAcceptedFriendEdges } = require('../lib/friendIds');
 
 const router = express.Router();
 const FRIENDS_TABLE = config.dynamo.friends;
 
 router.get('/', async (req, res, next) => {
   try {
+    if (config.devMemoryStore) return res.json({ friends: [] });
     const userId = getUserId(req);
-    const result = await ddb.send(
-      new QueryCommand({
-        TableName: FRIENDS_TABLE,
-        KeyConditionExpression: 'userId = :uid',
-        FilterExpression: '#st = :accepted',
-        ExpressionAttributeNames: { '#st': 'status' },
-        ExpressionAttributeValues: { ':uid': userId, ':accepted': 'accepted' },
-      })
+    const friends = await listAcceptedFriendEdges(userId);
+    const otherIds = friends.map((f) =>
+      f.userId === userId ? f.friendId : f.userId
     );
-    res.json({ friends: result.Items || [] });
+    const profiles = await loadProfiles(otherIds);
+    res.json({ friends, profiles });
   } catch (err) {
     next(err);
   }
@@ -32,6 +31,7 @@ router.get('/', async (req, res, next) => {
 
 router.get('/requests', async (req, res, next) => {
   try {
+    if (config.devMemoryStore) return res.json({ requests: [] });
     const userId = getUserId(req);
     const result = await ddb.send(
       new QueryCommand({
@@ -43,7 +43,9 @@ router.get('/requests', async (req, res, next) => {
         ExpressionAttributeValues: { ':uid': userId, ':pending': 'pending' },
       })
     );
-    res.json({ requests: result.Items || [] });
+    const requests = result.Items || [];
+    const profiles = await loadProfiles(requests.map((r) => r.userId));
+    res.json({ requests, profiles });
   } catch (err) {
     next(err);
   }
@@ -51,6 +53,7 @@ router.get('/requests', async (req, res, next) => {
 
 router.get('/outgoing', async (req, res, next) => {
   try {
+    if (config.devMemoryStore) return res.json({ requests: [] });
     const userId = getUserId(req);
     const result = await ddb.send(
       new QueryCommand({
@@ -61,7 +64,9 @@ router.get('/outgoing', async (req, res, next) => {
         ExpressionAttributeValues: { ':uid': userId, ':pending': 'pending' },
       })
     );
-    res.json({ requests: result.Items || [] });
+    const requests = result.Items || [];
+    const profiles = await loadProfiles(requests.map((r) => r.friendId));
+    res.json({ requests, profiles });
   } catch (err) {
     next(err);
   }
@@ -69,7 +74,7 @@ router.get('/outgoing', async (req, res, next) => {
 
 router.post(
   '/request',
-  body('friendId').isUUID(),
+  userIdField('friendId'),
   handleValidation,
   async (req, res, next) => {
     try {
@@ -78,6 +83,10 @@ router.post(
 
       if (userId === friendId) {
         return res.status(400).json({ error: 'Cannot friend yourself' });
+      }
+
+      if (config.devMemoryStore) {
+        return res.status(201).json({ success: true });
       }
 
       await ddb.send(
@@ -105,10 +114,11 @@ router.post(
 
 router.post(
   '/decline',
-  body('requesterId').isUUID(),
+  userIdField('requesterId'),
   handleValidation,
   async (req, res, next) => {
     try {
+      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { requesterId } = req.body;
 
@@ -128,10 +138,11 @@ router.post(
 
 router.post(
   '/accept',
-  body('requesterId').isUUID(),
+  userIdField('requesterId'),
   handleValidation,
   async (req, res, next) => {
     try {
+      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { requesterId } = req.body;
       const now = new Date().toISOString();
@@ -158,10 +169,11 @@ router.post(
 
 router.delete(
   '/request/:friendId',
-  param('friendId').isUUID(),
+  userIdField('friendId', 'param'),
   handleValidation,
   async (req, res, next) => {
     try {
+      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { friendId } = req.params;
 
@@ -181,10 +193,11 @@ router.delete(
 
 router.delete(
   '/:friendId',
-  param('friendId').isUUID(),
+  userIdField('friendId', 'param'),
   handleValidation,
   async (req, res, next) => {
     try {
+      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { friendId } = req.params;
 

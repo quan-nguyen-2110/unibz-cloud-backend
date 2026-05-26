@@ -4,6 +4,19 @@
 
 const API_STATUSES = new Set(['active', 'locked', 'completed']);
 const API_SOURCES = new Set(['manual', 'voice', 'suggestion']);
+const API_VISIBILITY = new Set(['public', 'private']);
+
+/**
+ * Feed / detail visibility: public plans for everyone; private plans only for
+ * host and accepted friends.
+ */
+function canViewPlan(viewerId, row, friendIds) {
+  if (!row?.hostId) return false;
+  if (row.hostId === viewerId) return true;
+  if (friendIds?.has(row.hostId)) return true;
+  const visibility = row.visibility || 'public';
+  return visibility === 'public';
+}
 
 function mapStatus(dbStatus) {
   if (dbStatus === 'locked') return 'locked';
@@ -56,6 +69,7 @@ function toApiPlan(row, tapInUserIds = []) {
     transcript: row.transcript ?? null,
     tapInUserIds: [...tapInUserIds],
     createdAt: row.createdAt,
+    visibility: API_VISIBILITY.has(row.visibility) ? row.visibility : 'public',
   };
 }
 
@@ -90,7 +104,8 @@ function storageFromCreate(body, hostId, planId, nowIso) {
     createdAt: nowIso,
     expiresAt: Math.floor(new Date(expiresAt).getTime() / 1000),
     expiresAtISO: expiresAt,
+    visibility: API_VISIBILITY.has(body.visibility) ? body.visibility : 'public',
   };
 }
 
-module.exports = { toApiPlan, storageFromCreate, mapStatus };
+module.exports = { toApiPlan, storageFromCreate, mapStatus, canViewPlan };

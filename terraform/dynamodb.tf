@@ -37,9 +37,10 @@ resource "aws_dynamodb_table" "plans" {
     projection_type = "ALL"
   }
 
+  # TTL disabled — plans are retained until explicitly cancelled/removed.
   ttl {
     attribute_name = "expiresAt"
-    enabled        = true
+    enabled        = false
   }
 }
 
@@ -74,5 +75,12 @@ resource "aws_dynamodb_table" "friends" {
   attribute {
     name = "friendId"
     type = "S"
+  }
+
+  # Incoming friend requests: query by recipient (friendId = me), filter status = pending.
+  global_secondary_index {
+    name            = "FriendIndex"
+    hash_key        = "friendId"
+    projection_type = "ALL"
   }
 }

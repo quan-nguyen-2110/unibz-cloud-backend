@@ -5,9 +5,10 @@ const { body, query, param } = require('express-validator');
 const { GetCommand, UpdateCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 
 const { ddb } = require('../services/dynamo');
+const devUsers = require('../services/devUserStore');
 const { getUserId } = require('../middleware/auth');
 const { config } = require('../lib/config');
-const { handleValidation } = require('../lib/validate');
+const { handleValidation, userIdField } = require('../lib/validate');
 
 const router = express.Router();
 const USERS_TABLE = config.dynamo.users;
@@ -15,6 +16,9 @@ const USERS_TABLE = config.dynamo.users;
 router.get('/me', async (req, res, next) => {
   try {
     const userId = getUserId(req);
+    if (config.devMemoryStore) {
+      return res.json({ user: devUsers.get(userId) });
+    }
     const result = await ddb.send(
       new GetCommand({ TableName: USERS_TABLE, Key: { userId } })
     );
@@ -29,10 +33,14 @@ router.put(
   '/me',
   body('displayName').optional().trim().isLength({ min: 1, max: 50 }),
   body('bio').optional().trim().isLength({ max: 200 }),
+  body('city').optional().trim().isLength({ max: 80 }),
   handleValidation,
   async (req, res, next) => {
     try {
       const userId = getUserId(req);
+      if (config.devMemoryStore) {
+        return res.json({ success: true });
+      }
       const names = {};
       const values = {};
       const parts = [];
@@ -45,6 +53,10 @@ router.put(
       if (req.body.bio !== undefined) {
         values[':bio'] = req.body.bio;
         parts.push('bio = :bio');
+      }
+      if (req.body.city !== undefined) {
+        values[':city'] = req.body.city;
+        parts.push('city = :city');
       }
       if (!parts.length) return res.status(400).json({ error: 'Nothing to update' });
 
@@ -71,12 +83,16 @@ router.get(
   handleValidation,
   async (req, res, next) => {
     try {
+      const me = getUserId(req);
       const q = req.query.q.toLowerCase();
+      if (config.devMemoryStore) {
+        return res.json({ users: devUsers.search(q, me) });
+      }
       const result = await ddb.send(
         new ScanCommand({
           TableName: USERS_TABLE,
-          FilterExpression: 'begins_with(username, :q)',
-          ExpressionAttributeValues: { ':q': q },
+          FilterExpression: 'begins_with(username, :q) AND userId <> :me',
+          ExpressionAttributeValues: { ':q': q, ':me': me },
           Limit: 20,
           ProjectionExpression: 'userId, username, displayName, avatarUrl',
         })
@@ -90,15 +106,20 @@ router.get(
 
 router.get(
   '/:id',
-  param('id').isUUID(),
+  userIdField('id', 'param'),
   handleValidation,
   async (req, res, next) => {
     try {
+      if (config.devMemoryStore) {
+        const user = devUsers.get(req.params.id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        return res.json({ user });
+      }
       const result = await ddb.send(
         new GetCommand({
           TableName: USERS_TABLE,
           Key: { userId: req.params.id },
-          ProjectionExpression: 'userId, username, displayName, avatarUrl, bio, createdAt',
+          ProjectionExpression: 'userId, username, displayName, avatarUrl, bio, city, createdAt',
         })
       );
       if (!result.Item) return res.status(404).json({ error: 'User not found' });

@@ -1,5 +1,11 @@
 'use strict';
 
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load squadUp-backend/.env when running Node locally (not in ECS).
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 const config = {
   port: parseInt(process.env.PORT, 10) || 8080,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -27,11 +33,7 @@ const config = {
 
   logLevel: process.env.LOG_LEVEL || 'info',
 
-  /** Use in-memory plans (no AWS credentials) — local Week 1 / Docker dev */
-  devMemoryStore:
-    process.env.DEV_MEMORY_STORE === 'true' ||
-    (process.env.NODE_ENV === 'development' &&
-      process.env.DEV_MEMORY_STORE !== 'false'),
+  devMemoryStore: process.env.DEV_MEMORY_STORE === 'true',
 };
 
 module.exports = { config };

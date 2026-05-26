@@ -89,7 +89,9 @@ resource "aws_iam_role_policy" "ecs_task" {
           "cognito-idp:SignUp",
           "cognito-idp:InitiateAuth",
           "cognito-idp:ConfirmSignUp",
-          "cognito-idp:ResendConfirmationCode"
+          "cognito-idp:ResendConfirmationCode",
+          "cognito-idp:ForgotPassword",
+          "cognito-idp:ConfirmForgotPassword"
         ]
         Resource = aws_cognito_user_pool.main.arn
       }

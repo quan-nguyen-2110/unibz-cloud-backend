@@ -39,27 +39,8 @@ function removeTapIn(planId, userId) {
   tapIns.delete(tapKey(planId, userId));
 }
 
-function seedIfEmpty(hostId) {
-  if (plans.size > 0) return;
-  const now = new Date().toISOString();
-  const start = new Date(Date.now() + 2 * 60 * 60_000).toISOString();
-  putPlan({
-    planId: '00000000-0000-4000-8000-000000000001',
-    hostId,
-    title: 'Pickup at Riverside courts',
-    vibeEmoji: '🏀',
-    emoji: '🏀',
-    startAt: start,
-    threshold: 4,
-    maxAttendees: 4,
-    tapInCount: 1,
-    status: 'active',
-    source: 'manual',
-    activities: [],
-    location: 'Riverside Basketball Courts',
-    createdAt: now,
-  });
-  addTapIn('00000000-0000-4000-8000-000000000001', hostId, now);
+function seedIfEmpty(_hostId) {
+  // No seed data — plans come from API create flow only.
 }
 
 module.exports = {

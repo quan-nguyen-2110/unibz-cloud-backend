@@ -15,7 +15,8 @@ const { getUserId } = require('../middleware/auth');
 const { broadcast } = require('../hubs/feedHub');
 const { config } = require('../lib/config');
 const { handleValidation } = require('../lib/validate');
-const { toApiPlan, storageFromCreate } = require('../lib/planDto');
+const { toApiPlan, storageFromCreate, canViewPlan } = require('../lib/planDto');
+const { loadAcceptedFriendIds } = require('../lib/friendIds');
 const mem = require('../services/devPlanStore');
 
 const router = express.Router();
@@ -77,43 +78,22 @@ async function listFeedPlans(userId, statusFilter, limit) {
   const statuses =
     statusFilter === 'active' ? ['active', 'locked'] : [statusFilter];
 
-  if (useMem()) {
-    mem.seedIfEmpty(userId);
-    const rows = [];
-    for (const st of statuses) rows.push(...mem.listByStatus(st));
-    const filtered = rows
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
-      .slice(0, limit);
-    const plans = [];
-    for (const row of filtered) {
-      plans.push(await hydratePlan(row));
-    }
-    return { plans, count: plans.length };
-  }
-
-  const friendsResult = await ddb.send(
-    new QueryCommand({
-      TableName: FRIENDS_TABLE,
-      KeyConditionExpression: 'userId = :uid',
-      FilterExpression: '#st = :accepted',
-      ExpressionAttributeNames: { '#st': 'status' },
-      ExpressionAttributeValues: { ':uid': userId, ':accepted': 'accepted' },
-    })
-  );
-
-  const friendIds = new Set(
-    (friendsResult.Items || []).map((f) => f.friendId)
-  );
-  friendIds.add(userId);
+  const friendIds = useMem()
+    ? new Set()
+    : await loadAcceptedFriendIds(userId);
 
   const rows = [];
-  for (const st of statuses) {
-    const result = await listActivePlans(st, Math.min(limit * 3, 100));
-    rows.push(...(result.Items || []));
+  if (useMem()) {
+    for (const st of statuses) rows.push(...mem.listByStatus(st));
+  } else {
+    for (const st of statuses) {
+      const result = await listActivePlans(st, Math.min(limit * 5, 150));
+      rows.push(...(result.Items || []));
+    }
   }
 
   const filtered = rows
-    .filter((p) => friendIds.has(p.hostId))
+    .filter((p) => canViewPlan(userId, p, friendIds))
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
     .slice(0, limit);
 
@@ -137,6 +117,7 @@ const createValidators = [
   body('source').optional().isIn(['manual', 'voice', 'suggestion']),
   body('transcript').optional().isString().isLength({ max: 5000 }),
   body('expiresInMinutes').optional().isInt({ min: 15, max: 1440 }),
+  body('visibility').optional().isIn(['public', 'private']),
   handleValidation,
 ];
 
@@ -221,8 +202,15 @@ router.get(
   handleValidation,
   async (req, res, next) => {
     try {
+      const userId = getUserId(req);
       const row = await findPlanById(req.params.id);
       if (!row) return res.status(404).json({ error: 'Plan not found' });
+      const friendIds = useMem()
+        ? new Set()
+        : await loadAcceptedFriendIds(userId);
+      if (!canViewPlan(userId, row, friendIds)) {
+        return res.status(403).json({ error: 'Not allowed to view this plan' });
+      }
       res.json({ plan: await hydratePlan(row) });
     } catch (err) {
       next(err);
@@ -242,6 +230,12 @@ router.post(
 
       const plan = await findPlanById(planId);
       if (!plan) return res.status(404).json({ error: 'Plan not found' });
+      const friendIds = useMem()
+        ? new Set()
+        : await loadAcceptedFriendIds(userId);
+      if (!canViewPlan(userId, plan, friendIds)) {
+        return res.status(403).json({ error: 'Not allowed to join this plan' });
+      }
       if (plan.status !== 'active') {
         return res.status(409).json({ error: 'Plan is no longer active' });
       }

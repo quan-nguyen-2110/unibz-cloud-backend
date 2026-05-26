@@ -1,7 +1,7 @@
 variable "aws_region" {
   type        = string
-  description = "AWS region"
-  default     = "eu-central-1"
+  description = "AWS region (must match existing SquadUp resources — us-east-1)"
+  default     = "us-east-1"
 }
 
 variable "project_name" {
@@ -56,7 +56,7 @@ variable "cognito_logout_urls" {
 variable "use_lab_role" {
   type        = bool
   description = "When true, ECS uses existing LabRole instead of creating squadup-ecs-* roles"
-  default     = false
+  default     = true
 }
 
 variable "lab_role_name" {

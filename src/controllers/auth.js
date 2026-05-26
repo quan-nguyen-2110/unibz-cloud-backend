@@ -8,6 +8,8 @@ const {
   InitiateAuthCommand,
   ConfirmSignUpCommand,
   ResendConfirmationCodeCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 const { PutCommand } = require('@aws-sdk/lib-dynamodb');
 
@@ -178,6 +180,74 @@ router.post(
       );
       res.json({ message: 'Code resent' });
     } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.post(
+  '/forgot-password',
+  body('email').isEmail().normalizeEmail(),
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      await cognito.send(
+        new ForgotPasswordCommand({
+          ClientId: clientId,
+          Username: req.body.email,
+        })
+      );
+      res.json({
+        message: 'If an account exists for this email, a reset code has been sent',
+      });
+    } catch (err) {
+      if (err.name === 'InvalidParameterException') {
+        return res.status(400).json({ error: 'Invalid email address' });
+      }
+      if (err.name === 'LimitExceededException') {
+        return res.status(429).json({ error: 'Too many attempts — try again later' });
+      }
+      // Cognito client has prevent_user_existence_errors; treat unknown users like success.
+      if (err.name === 'UserNotFoundException') {
+        return res.json({
+          message: 'If an account exists for this email, a reset code has been sent',
+        });
+      }
+      next(err);
+    }
+  }
+);
+
+router.post(
+  '/reset-password',
+  body('email').isEmail().normalizeEmail(),
+  body('code').isLength({ min: 6, max: 6 }),
+  body('password').isLength({ min: 8 }),
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      await cognito.send(
+        new ConfirmForgotPasswordCommand({
+          ClientId: clientId,
+          Username: req.body.email,
+          ConfirmationCode: req.body.code,
+          Password: req.body.password,
+        })
+      );
+      res.json({ message: 'Password updated — you can now log in' });
+    } catch (err) {
+      if (['CodeMismatchException', 'ExpiredCodeException'].includes(err.name)) {
+        return res.status(400).json({ error: 'Invalid or expired reset code' });
+      }
+      if (err.name === 'InvalidPasswordException') {
+        return res.status(400).json({
+          error:
+            'Password must be at least 8 characters with uppercase, lowercase, and a number',
+        });
+      }
+      if (err.name === 'LimitExceededException') {
+        return res.status(429).json({ error: 'Too many attempts — try again later' });
+      }
       next(err);
     }
   }
