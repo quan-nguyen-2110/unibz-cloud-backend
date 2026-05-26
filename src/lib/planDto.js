@@ -46,7 +46,7 @@ function normalizeActivities(row) {
   ];
 }
 
-function toApiPlan(row, tapInUserIds = []) {
+function toApiPlan(row, tapInUserIds = [], photos = []) {
   if (!row) return null;
   const location =
     typeof row.location === 'string'
@@ -70,6 +70,7 @@ function toApiPlan(row, tapInUserIds = []) {
     tapInUserIds: [...tapInUserIds],
     createdAt: row.createdAt,
     visibility: API_VISIBILITY.has(row.visibility) ? row.visibility : 'public',
+    photos: Array.isArray(photos) ? photos : [],
   };
 }
 

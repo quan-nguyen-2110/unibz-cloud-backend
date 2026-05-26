@@ -21,6 +21,9 @@ const config = {
     plans: process.env.DYNAMO_PLANS_TABLE || 'squadup-plans',
     tapIns: process.env.DYNAMO_TAPINS_TABLE || 'squadup-tap-ins',
     friends: process.env.DYNAMO_FRIENDS_TABLE || 'squadup-friendships',
+    planPhotos: process.env.DYNAMO_PLAN_PHOTOS_TABLE || 'squadup-plan-photos',
+    notifications:
+      process.env.DYNAMO_NOTIFICATIONS_TABLE || 'squadup-notifications',
   },
 
   s3: {
@@ -32,8 +35,6 @@ const config = {
   },
 
   logLevel: process.env.LOG_LEVEL || 'info',
-
-  devMemoryStore: process.env.DEV_MEMORY_STORE === 'true',
 };
 
 module.exports = { config };

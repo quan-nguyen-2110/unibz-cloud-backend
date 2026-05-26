@@ -66,12 +66,19 @@ resource "aws_iam_role_policy" "ecs_task" {
           aws_dynamodb_table.plans.arn,
           "${aws_dynamodb_table.plans.arn}/index/*",
           aws_dynamodb_table.tap_ins.arn,
-          aws_dynamodb_table.friends.arn
+          aws_dynamodb_table.friends.arn,
+          aws_dynamodb_table.plan_photos.arn,
+          aws_dynamodb_table.notifications.arn
         ]
       },
       {
-        Effect   = "Allow"
-        Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject"
+        ]
         Resource = ["${aws_s3_bucket.audio.arn}/*"]
       },
       {

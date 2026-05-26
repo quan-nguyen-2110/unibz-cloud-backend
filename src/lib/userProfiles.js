@@ -2,7 +2,6 @@
 
 const { GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { ddb } = require('../services/dynamo');
-const devUsers = require('../services/devUserStore');
 const { config } = require('./config');
 
 function publicUser(item) {
@@ -20,14 +19,6 @@ function publicUser(item) {
 async function loadProfiles(userIds) {
   const unique = [...new Set(userIds.filter(Boolean))];
   const profiles = {};
-
-  if (config.devMemoryStore) {
-    for (const id of unique) {
-      const u = publicUser(devUsers.get(id));
-      if (u) profiles[id] = u;
-    }
-    return profiles;
-  }
 
   await Promise.all(
     unique.map(async (userId) => {

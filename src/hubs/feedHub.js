@@ -20,8 +20,17 @@ function initHub(server) {
     let userId;
     try {
       const { query } = parseUrl(req.url, true);
-      if (!query.token) throw new Error('No token');
-      userId = await verifyToken(query.token);
+      if (
+        config.nodeEnv === 'development' &&
+        query.devUserId &&
+        typeof query.devUserId === 'string'
+      ) {
+        userId = query.devUserId;
+      } else if (query.token) {
+        userId = await verifyToken(query.token);
+      } else {
+        throw new Error('No token');
+      }
     } catch {
       ws.close(4001, 'Unauthorized');
       return;

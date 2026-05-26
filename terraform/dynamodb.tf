@@ -61,6 +61,40 @@ resource "aws_dynamodb_table" "tap_ins" {
   }
 }
 
+resource "aws_dynamodb_table" "plan_photos" {
+  name         = "${var.project_name}-plan-photos"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "planId"
+  range_key    = "photoId"
+
+  attribute {
+    name = "planId"
+    type = "S"
+  }
+
+  attribute {
+    name = "photoId"
+    type = "S"
+  }
+}
+
+resource "aws_dynamodb_table" "notifications" {
+  name         = "${var.project_name}-notifications"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+  range_key    = "notificationId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  attribute {
+    name = "notificationId"
+    type = "S"
+  }
+}
+
 resource "aws_dynamodb_table" "friends" {
   name         = "${var.project_name}-friendships"
   billing_mode = "PAY_PER_REQUEST"

@@ -5,7 +5,6 @@ const { body, query, param } = require('express-validator');
 const { GetCommand, UpdateCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 
 const { ddb } = require('../services/dynamo');
-const devUsers = require('../services/devUserStore');
 const { getUserId } = require('../middleware/auth');
 const { config } = require('../lib/config');
 const { handleValidation, userIdField } = require('../lib/validate');
@@ -16,9 +15,6 @@ const USERS_TABLE = config.dynamo.users;
 router.get('/me', async (req, res, next) => {
   try {
     const userId = getUserId(req);
-    if (config.devMemoryStore) {
-      return res.json({ user: devUsers.get(userId) });
-    }
     const result = await ddb.send(
       new GetCommand({ TableName: USERS_TABLE, Key: { userId } })
     );
@@ -38,9 +34,6 @@ router.put(
   async (req, res, next) => {
     try {
       const userId = getUserId(req);
-      if (config.devMemoryStore) {
-        return res.json({ success: true });
-      }
       const names = {};
       const values = {};
       const parts = [];
@@ -85,9 +78,6 @@ router.get(
     try {
       const me = getUserId(req);
       const q = req.query.q.toLowerCase();
-      if (config.devMemoryStore) {
-        return res.json({ users: devUsers.search(q, me) });
-      }
       const result = await ddb.send(
         new ScanCommand({
           TableName: USERS_TABLE,
@@ -110,11 +100,6 @@ router.get(
   handleValidation,
   async (req, res, next) => {
     try {
-      if (config.devMemoryStore) {
-        const user = devUsers.get(req.params.id);
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        return res.json({ user });
-      }
       const result = await ddb.send(
         new GetCommand({
           TableName: USERS_TABLE,

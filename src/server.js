@@ -17,6 +17,8 @@ const plansRoutes = require('./controllers/plans');
 const usersRoutes = require('./controllers/users');
 const friendsRoutes = require('./controllers/friends');
 const voiceRoutes = require('./controllers/voice');
+const planPhotosRoutes = require('./controllers/planPhotos');
+const notificationsRoutes = require('./controllers/notifications');
 const { initHub } = require('./hubs/feedHub');
 const { startVoiceProcessor } = require('./workers/voiceProcessor');
 const { startRecapSweep } = require('./workers/recapSweep');
@@ -29,7 +31,7 @@ app.use(
 app.use(
   cors({
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Correlation-Id', 'X-Dev-User-Id'],
   })
 );
@@ -54,9 +56,11 @@ app.get('/health', (_req, res) => res.json(healthPayload()));
 
 app.use('/auth', authRoutes);
 app.use('/plans', authMiddleware, plansRoutes);
+app.use('/plans/:planId/photos', authMiddleware, planPhotosRoutes);
 app.use('/users', authMiddleware, usersRoutes);
 app.use('/friends', authMiddleware, friendsRoutes);
 app.use('/voice', authMiddleware, voiceRoutes);
+app.use('/notifications', authMiddleware, notificationsRoutes);
 
 app.use((err, req, res, _next) => {
   if (err.name === 'UnauthorizedError') {

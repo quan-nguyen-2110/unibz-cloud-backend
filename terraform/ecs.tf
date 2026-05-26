@@ -57,6 +57,8 @@ resource "aws_ecs_task_definition" "api" {
       { name = "DYNAMO_PLANS_TABLE", value = aws_dynamodb_table.plans.name },
       { name = "DYNAMO_TAPINS_TABLE", value = aws_dynamodb_table.tap_ins.name },
       { name = "DYNAMO_FRIENDS_TABLE", value = aws_dynamodb_table.friends.name },
+      { name = "DYNAMO_PLAN_PHOTOS_TABLE", value = aws_dynamodb_table.plan_photos.name },
+      { name = "DYNAMO_NOTIFICATIONS_TABLE", value = aws_dynamodb_table.notifications.name },
       { name = "S3_AUDIO_BUCKET", value = aws_s3_bucket.audio.bucket },
       { name = "ENABLE_WORKERS", value = "true" }
     ]

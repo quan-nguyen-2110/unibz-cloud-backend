@@ -16,7 +16,6 @@ const FRIENDS_TABLE = config.dynamo.friends;
 
 router.get('/', async (req, res, next) => {
   try {
-    if (config.devMemoryStore) return res.json({ friends: [] });
     const userId = getUserId(req);
     const friends = await listAcceptedFriendEdges(userId);
     const otherIds = friends.map((f) =>
@@ -31,7 +30,6 @@ router.get('/', async (req, res, next) => {
 
 router.get('/requests', async (req, res, next) => {
   try {
-    if (config.devMemoryStore) return res.json({ requests: [] });
     const userId = getUserId(req);
     const result = await ddb.send(
       new QueryCommand({
@@ -53,7 +51,6 @@ router.get('/requests', async (req, res, next) => {
 
 router.get('/outgoing', async (req, res, next) => {
   try {
-    if (config.devMemoryStore) return res.json({ requests: [] });
     const userId = getUserId(req);
     const result = await ddb.send(
       new QueryCommand({
@@ -85,10 +82,6 @@ router.post(
         return res.status(400).json({ error: 'Cannot friend yourself' });
       }
 
-      if (config.devMemoryStore) {
-        return res.status(201).json({ success: true });
-      }
-
       await ddb.send(
         new PutCommand({
           TableName: FRIENDS_TABLE,
@@ -118,7 +111,6 @@ router.post(
   handleValidation,
   async (req, res, next) => {
     try {
-      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { requesterId } = req.body;
 
@@ -142,7 +134,6 @@ router.post(
   handleValidation,
   async (req, res, next) => {
     try {
-      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { requesterId } = req.body;
       const now = new Date().toISOString();
@@ -173,7 +164,6 @@ router.delete(
   handleValidation,
   async (req, res, next) => {
     try {
-      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { friendId } = req.params;
 
@@ -197,7 +187,6 @@ router.delete(
   handleValidation,
   async (req, res, next) => {
     try {
-      if (config.devMemoryStore) return res.json({ success: true });
       const userId = getUserId(req);
       const { friendId } = req.params;
 
