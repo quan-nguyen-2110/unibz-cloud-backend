@@ -33,6 +33,10 @@ const { config } = require('../lib/config');
 const { handleValidation } = require('../lib/validate');
 
 const { toApiPlan, storageFromCreate, canViewPlan } = require('../lib/planDto');
+const {
+  listRecapPlansForUser,
+  setProfileShare,
+} = require('../lib/recapShares');
 
 const { loadAcceptedFriendIds } = require('../lib/friendIds');
 
@@ -53,6 +57,7 @@ const {
   notifyPlanCancelled,
   notifyHostAttendeeJoined,
   notifyHostAttendeeLeft,
+  notifyAttendeeRemovedByHost,
 } = require('../services/notifications');
 
 
@@ -311,6 +316,40 @@ router.get(
 
 
 
+router.get('/recaps', async (req, res, next) => {
+  try {
+    const userId = getUserId(req);
+    const plans = await listRecapPlansForUser(userId);
+    res.json({ plans, count: plans.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+router.patch(
+  '/:id/profile-share',
+  param('id').isUUID(),
+  body('sharedToProfile').isBoolean(),
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      const userId = getUserId(req);
+      const plan = await setProfileShare(
+        userId,
+        req.params.id,
+        req.body.sharedToProfile
+      );
+      res.json({ plan });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+
+
 router.get(
 
   '/:id/tap-ins',
@@ -543,83 +582,48 @@ router.post(
 
 
 
+async function removeTapInForUser(plan, userId) {
+  await ddb.send(
+    new TransactWriteCommand({
+      TransactItems: [
+        {
+          Delete: {
+            TableName: TAPINS_TABLE,
+            Key: { planId: plan.planId, userId },
+            ConditionExpression: 'attribute_exists(userId)',
+          },
+        },
+        {
+          Update: {
+            TableName: PLANS_TABLE,
+            Key: { planId: plan.planId, createdAt: plan.createdAt },
+            UpdateExpression: 'SET tapInCount = tapInCount - :one',
+            ConditionExpression: 'tapInCount > :zero',
+            ExpressionAttributeValues: { ':one': 1, ':zero': 0 },
+          },
+        },
+      ],
+    })
+  );
+  broadcast('planTapOut', { planId: plan.planId, userId });
+}
+
 router.delete(
-
   '/:id/tap-in',
-
   param('id').isUUID(),
-
   handleValidation,
-
   async (req, res, next) => {
-
     try {
-
       const userId = getUserId(req);
-
       const planId = req.params.id;
 
-
-
       const plan = await findPlanById(planId);
-
       if (!plan) return res.status(404).json({ error: 'Plan not found' });
-
       if (plan.status === 'locked') {
-
         return res.status(409).json({ error: 'Plan is locked — cannot leave' });
-
       }
 
-
-
-      await ddb.send(
-
-        new TransactWriteCommand({
-
-          TransactItems: [
-
-            {
-
-              Delete: {
-
-                TableName: TAPINS_TABLE,
-
-                Key: { planId, userId },
-
-                ConditionExpression: 'attribute_exists(userId)',
-
-              },
-
-            },
-
-            {
-
-              Update: {
-
-                TableName: PLANS_TABLE,
-
-                Key: { planId, createdAt: plan.createdAt },
-
-                UpdateExpression: 'SET tapInCount = tapInCount - :one',
-
-                ConditionExpression: 'tapInCount > :zero',
-
-                ExpressionAttributeValues: { ':one': 1, ':zero': 0 },
-
-              },
-
-            },
-
-          ],
-
-        })
-
-      );
-
-
-
-      broadcast('planTapOut', { planId, userId });
+      await removeTapInForUser(plan, userId);
 
       if (plan.hostId && userId !== plan.hostId) {
         await notifyHostAttendeeLeft({
@@ -630,21 +634,54 @@ router.delete(
       }
 
       res.json({ success: true });
-
     } catch (err) {
-
       if (err.name === 'TransactionCanceledException') {
-
         return res.status(409).json({ error: 'Not tapped in' });
+      }
+      next(err);
+    }
+  }
+);
 
+router.delete(
+  '/:id/attendees/:userId',
+  param('id').isUUID(),
+  param('userId').isUUID(),
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      const hostId = getUserId(req);
+      const planId = req.params.id;
+      const attendeeId = req.params.userId;
+
+      const plan = await findPlanById(planId);
+      if (!plan) return res.status(404).json({ error: 'Plan not found' });
+      if (plan.hostId !== hostId) {
+        return res.status(403).json({ error: 'Only the host can remove attendees' });
+      }
+      if (isPlanCancelled(plan)) {
+        return res.status(409).json({ error: 'Plan is cancelled' });
+      }
+      if (attendeeId === plan.hostId) {
+        return res.status(400).json({ error: 'Cannot remove the host' });
       }
 
+      const tapInUserIds = await tapInUserIdsForPlan(planId);
+      if (!tapInUserIds.includes(attendeeId)) {
+        return res.status(404).json({ error: 'User is not tapped in' });
+      }
+
+      await removeTapInForUser(plan, attendeeId);
+      await notifyAttendeeRemovedByHost({ plan, hostId, attendeeId });
+
+      res.json({ success: true });
+    } catch (err) {
+      if (err.name === 'TransactionCanceledException') {
+        return res.status(409).json({ error: 'Could not remove attendee' });
+      }
       next(err);
-
     }
-
   }
-
 );
 
 

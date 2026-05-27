@@ -10,6 +10,7 @@ const { config } = require('../lib/config');
 const { handleValidation, userIdField } = require('../lib/validate');
 const { loadProfiles } = require('../lib/userProfiles');
 const { listAcceptedFriendEdges } = require('../lib/friendIds');
+const { notifyFriendRequest } = require('../services/notifications');
 
 const router = express.Router();
 const FRIENDS_TABLE = config.dynamo.friends;
@@ -94,6 +95,11 @@ router.post(
           ConditionExpression: 'attribute_not_exists(friendId)',
         })
       );
+
+      await notifyFriendRequest({
+        recipientId: friendId,
+        requesterId: userId,
+      });
 
       res.status(201).json({ success: true });
     } catch (err) {

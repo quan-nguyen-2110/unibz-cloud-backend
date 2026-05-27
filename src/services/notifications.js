@@ -139,6 +139,37 @@ async function notifyHostAttendeeJoined({ plan, hostId, attendeeId }) {
 /**
  * Notify the host that someone left their plan (persist + realtime to host only).
  */
+/**
+ * Notify an attendee that the host removed them from a plan.
+ */
+async function notifyAttendeeRemovedByHost({ plan, hostId, attendeeId }) {
+  if (!hostId || !attendeeId || attendeeId === hostId) return null;
+
+  const hostName = await getUserDisplayName(hostId);
+  const planTitle = plan.title?.trim() || 'a plan';
+  const body = `${hostName} removed you from "${planTitle}".`;
+
+  const notification = await createNotification({
+    userId: attendeeId,
+    type: 'removed_from_plan',
+    planId: plan.planId,
+    title: 'Removed from plan',
+    body,
+    metadata: { hostId, hostName, planTitle },
+  });
+
+  sendToUser(attendeeId, 'removedFromPlan', {
+    planId: plan.planId,
+    planTitle,
+    hostId,
+    hostName,
+    message: body,
+    notificationId: notification.id,
+  });
+
+  return notification;
+}
+
 async function notifyHostAttendeeLeft({ plan, hostId, attendeeId }) {
   if (!hostId || attendeeId === hostId) return null;
 
@@ -214,6 +245,34 @@ async function markRead(userId, notificationId) {
   return toApiNotification({ ...row, read: true });
 }
 
+/**
+ * Notify recipient that someone sent a friend request (persist + realtime).
+ */
+async function notifyFriendRequest({ recipientId, requesterId }) {
+  if (!recipientId || !requesterId || recipientId === requesterId) return null;
+
+  const requesterName = await getUserDisplayName(requesterId);
+  const body = `${requesterName} wants to be friends.`;
+
+  const notification = await createNotification({
+    userId: recipientId,
+    type: 'friend_request',
+    planId: null,
+    title: 'New friend request',
+    body,
+    metadata: { requesterId, requesterName },
+  });
+
+  sendToUser(recipientId, 'friendRequest', {
+    requesterId,
+    requesterName,
+    message: body,
+    notificationId: notification.id,
+  });
+
+  return notification;
+}
+
 async function markAllRead(userId) {
   const items = await listForUser(userId, { unreadOnly: true, limit: 100 });
   for (const n of items) {
@@ -226,6 +285,8 @@ module.exports = {
   notifyPlanCancelled,
   notifyHostAttendeeJoined,
   notifyHostAttendeeLeft,
+  notifyAttendeeRemovedByHost,
+  notifyFriendRequest,
   listForUser,
   markRead,
   markAllRead,

@@ -46,14 +46,14 @@ function normalizeActivities(row) {
   ];
 }
 
-function toApiPlan(row, tapInUserIds = [], photos = []) {
+function toApiPlan(row, tapInUserIds = [], photos = [], extra = {}) {
   if (!row) return null;
   const location =
     typeof row.location === 'string'
       ? row.location
       : row.location?.name ?? null;
 
-  return {
+  const plan = {
     id: row.planId,
     creatorId: row.hostId,
     vibeEmoji: row.vibeEmoji || row.emoji || '✨',
@@ -72,6 +72,15 @@ function toApiPlan(row, tapInUserIds = [], photos = []) {
     visibility: API_VISIBILITY.has(row.visibility) ? row.visibility : 'public',
     photos: Array.isArray(photos) ? photos : [],
   };
+
+  if (extra.sharedToProfile !== undefined) {
+    plan.sharedToProfile = !!extra.sharedToProfile;
+  }
+  if (extra.recapRole === 'hosted' || extra.recapRole === 'attended') {
+    plan.recapRole = extra.recapRole;
+  }
+
+  return plan;
 }
 
 function storageFromCreate(body, hostId, planId, nowIso) {

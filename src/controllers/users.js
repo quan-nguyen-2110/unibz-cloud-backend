@@ -8,6 +8,7 @@ const { ddb } = require('../services/dynamo');
 const { getUserId } = require('../middleware/auth');
 const { config } = require('../lib/config');
 const { handleValidation, userIdField } = require('../lib/validate');
+const { listProfileRecaps } = require('../lib/recapShares');
 
 const router = express.Router();
 const USERS_TABLE = config.dynamo.users;
@@ -88,6 +89,21 @@ router.get(
         })
       );
       res.json({ users: result.Items || [] });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.get(
+  '/:id/profile-recaps',
+  userIdField('id', 'param'),
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      const viewerId = getUserId(req);
+      const plans = await listProfileRecaps(req.params.id, viewerId);
+      res.json({ plans, count: plans.length });
     } catch (err) {
       next(err);
     }
