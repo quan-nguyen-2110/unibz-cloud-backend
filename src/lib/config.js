@@ -30,6 +30,14 @@ const config = {
     audioBucket: process.env.S3_AUDIO_BUCKET || 'squadup-audio',
   },
 
+  voice: {
+    parser: process.env.VOICE_PARSER || 'bedrock',
+    llmBaseUrl: process.env.VOICE_LLM_BASE_URL || 'https://openrouter.ai/api/v1',
+    llmApiKey: process.env.VOICE_LLM_API_KEY || '',
+    llmModel: process.env.VOICE_LLM_MODEL || 'google/gemini-2.5-flash',
+    llmTimeoutMs: parseInt(process.env.VOICE_LLM_TIMEOUT_MS, 10) || 15000,
+  },
+
   workers: {
     enabled: process.env.ENABLE_WORKERS !== 'false',
   },

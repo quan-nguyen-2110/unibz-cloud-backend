@@ -1,6 +1,7 @@
 'use strict';
 
 const { invokeClaudeJson } = require('./bedrockJson');
+const { config } = require('./config');
 const { logger } = require('./logger');
 
 /** Built-in labels (same as Flutter catalog); no Bedrock call. */
@@ -53,7 +54,7 @@ const FALLBACK_LABELS = {
 };
 
 /** @type {Map<string, string>} */
-const cache = new Map(Object.entries({ ...FALLBACK_LABELS, ...BUILTIN_LABELS }));
+const cache = new Map(Object.entries(BUILTIN_LABELS));
 
 function normalizeEmoji(value) {
   return String(value || '').trim();
@@ -99,14 +100,18 @@ Respond ONLY with valid JSON — an object whose keys are the exact emoji charac
 
   try {
     const { data } = await invokeClaudeJson(prompt);
-    for (const emoji of missing) {
-      const label = sanitizeLabel(data[emoji]) || fallbackLabel(emoji);
-      cache.set(emoji, label);
-      result[emoji] = label;
-    }
+    applyLabels(result, missing, data);
     return result;
   } catch (err) {
-    logger.warn({ err: err.message }, 'Bedrock vibe labels unavailable; using fallbacks');
+    logger.warn({ err: err.message }, 'Bedrock vibe labels unavailable; trying OpenRouter');
+  }
+
+  try {
+    const data = await invokeOpenRouterJson(prompt);
+    applyLabels(result, missing, data);
+    return result;
+  } catch (err) {
+    logger.warn({ err: err.message }, 'OpenRouter vibe labels unavailable; using built-in fallback');
     for (const emoji of missing) {
       const label = fallbackLabel(emoji);
       cache.set(emoji, label);
@@ -114,6 +119,43 @@ Respond ONLY with valid JSON — an object whose keys are the exact emoji charac
     }
     return result;
   }
+}
+
+function applyLabels(result, emojis, data) {
+  for (const emoji of emojis) {
+    const label = sanitizeLabel(data?.[emoji]) || fallbackLabel(emoji);
+    cache.set(emoji, label);
+    result[emoji] = label;
+  }
+}
+
+async function invokeOpenRouterJson(prompt) {
+  if (!config.voice.llmApiKey) {
+    throw new Error('VOICE_LLM_API_KEY missing');
+  }
+  const response = await fetch(`${config.voice.llmBaseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.voice.llmApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: config.voice.llmModel,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: 'Return valid JSON only. No markdown.' },
+        { role: 'user', content: prompt },
+      ],
+    }),
+    signal: AbortSignal.timeout(config.voice.llmTimeoutMs),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`OpenRouter error: ${response.status}`);
+  }
+  const rawText = payload?.choices?.[0]?.message?.content || '{}';
+  return JSON.parse(String(rawText).replace(/```json|```/g, '').trim());
 }
 
 function fallbackLabel(emoji) {
