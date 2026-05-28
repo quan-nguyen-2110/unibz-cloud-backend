@@ -60,7 +60,12 @@ resource "aws_ecs_task_definition" "api" {
       { name = "DYNAMO_PLAN_PHOTOS_TABLE", value = aws_dynamodb_table.plan_photos.name },
       { name = "DYNAMO_NOTIFICATIONS_TABLE", value = aws_dynamodb_table.notifications.name },
       { name = "S3_AUDIO_BUCKET", value = aws_s3_bucket.audio.bucket },
-      { name = "ENABLE_WORKERS", value = "true" }
+      { name = "ENABLE_WORKERS", value = "true" },
+      { name = "VOICE_PARSER", value = var.voice_parser },
+      { name = "VOICE_LLM_BASE_URL", value = var.voice_llm_base_url },
+      { name = "VOICE_LLM_MODEL", value = var.voice_llm_model },
+      { name = "VOICE_LLM_TIMEOUT_MS", value = tostring(var.voice_llm_timeout_ms) },
+      { name = "VOICE_LLM_API_KEY", value = var.voice_llm_api_key },
     ]
     logConfiguration = {
       logDriver = "awslogs"

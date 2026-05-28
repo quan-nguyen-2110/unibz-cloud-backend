@@ -64,3 +64,32 @@ variable "lab_role_name" {
   description = "Pre-provisioned lab role name (usually LabRole)"
   default     = "LabRole"
 }
+
+# Voice plan generation (OpenRouter). Set voice_llm_api_key in secrets.auto.tfvars (gitignored).
+variable "voice_parser" {
+  type        = string
+  description = "AI provider order: external (OpenRouter) or bedrock"
+  default     = "external"
+}
+
+variable "voice_llm_base_url" {
+  type    = string
+  default = "https://openrouter.ai/api/v1"
+}
+
+variable "voice_llm_model" {
+  type    = string
+  default = "google/gemini-2.5-flash"
+}
+
+variable "voice_llm_timeout_ms" {
+  type    = number
+  default = 15000
+}
+
+variable "voice_llm_api_key" {
+  type        = string
+  description = "OpenRouter API key (required when voice_parser=external)"
+  sensitive   = true
+  default     = "sk-or-v1-...."
+}

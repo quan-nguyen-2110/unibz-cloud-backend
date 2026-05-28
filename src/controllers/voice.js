@@ -244,7 +244,7 @@ REFERENCE — use for every relative date/time (never invent years in the past):
 ${tzLine}
 
 STRICT RULES:
-1. startAt: ISO-8601 datetime with offset when the transcript states a date or time (e.g. "tomorrow at 7pm"). Resolve "tomorrow", "tonight", "7:00 p.m." relative to Now. If no date/time is stated, use null. Do not default to 7pm.
+1. startAt: ISO-8601 datetime in the user's timezone offset when the transcript states a date or time (e.g. "tomorrow at 7pm" -> tomorrow 19:00 in user offset). Resolve "tomorrow", "tonight", "7:00 p.m." relative to Now. If no date/time is stated, use null. Do not default to 7pm.
 2. location: A real venue, business, address, or named place only. Use null for idioms ("at the door"), vague phrases ("somewhere", "here"), or when no real place was named.
 3. maxPeople: Set only when the transcript explicitly gives a headcount (e.g. "for 6 people"). Otherwise use -1 (unlimited). Never guess a number.
 4. vibeName: Short vibe label matching vibeEmoji (max 24 chars), e.g. "Pizza Night", "Hoops", "Study Session".
@@ -506,21 +506,60 @@ function extractTimeFromText(lowerText) {
   return { hours, minutes };
 }
 
-function formatIsoAtOffset(date, utcOffsetMinutes = 0) {
+function instantToWallClock(instant, utcOffsetMinutes = 0) {
   const offset = Number.isFinite(utcOffsetMinutes) ? utcOffsetMinutes : 0;
-  const shifted = new Date(date.getTime() + offset * 60 * 1000);
-  const yyyy = shifted.getUTCFullYear();
-  const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(shifted.getUTCDate()).padStart(2, '0');
-  const hh = String(shifted.getUTCHours()).padStart(2, '0');
-  const mi = String(shifted.getUTCMinutes()).padStart(2, '0');
-  const ss = String(shifted.getUTCSeconds()).padStart(2, '0');
-  const msec = String(shifted.getUTCMilliseconds()).padStart(3, '0');
+  const shifted = new Date(instant.getTime() + offset * 60 * 1000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hours: shifted.getUTCHours(),
+    minutes: shifted.getUTCMinutes(),
+    seconds: shifted.getUTCSeconds(),
+  };
+}
+
+function wallClockToInstant(clock, utcOffsetMinutes = 0) {
+  const offset = Number.isFinite(utcOffsetMinutes) ? utcOffsetMinutes : 0;
+  const utcMs =
+    Date.UTC(
+      clock.year,
+      clock.month - 1,
+      clock.day,
+      clock.hours,
+      clock.minutes,
+      clock.seconds || 0,
+      0
+    ) -
+    offset * 60 * 1000;
+  return new Date(utcMs);
+}
+
+function addWallClockDays(clock, days) {
+  const utcDay = Date.UTC(clock.year, clock.month - 1, clock.day);
+  const next = new Date(utcDay + days * 86400000);
+  return {
+    ...clock,
+    year: next.getUTCFullYear(),
+    month: next.getUTCMonth() + 1,
+    day: next.getUTCDate(),
+  };
+}
+
+function formatIsoAtOffset(date, utcOffsetMinutes = 0) {
+  const clock = instantToWallClock(date, utcOffsetMinutes);
+  const yyyy = clock.year;
+  const mm = String(clock.month).padStart(2, '0');
+  const dd = String(clock.day).padStart(2, '0');
+  const hh = String(clock.hours).padStart(2, '0');
+  const mi = String(clock.minutes).padStart(2, '0');
+  const ss = String(clock.seconds).padStart(2, '0');
+  const offset = Number.isFinite(utcOffsetMinutes) ? utcOffsetMinutes : 0;
   const sign = offset >= 0 ? '+' : '-';
   const abs = Math.abs(offset);
   const offH = String(Math.floor(abs / 60)).padStart(2, '0');
   const offM = String(abs % 60).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}.${msec}${sign}${offH}:${offM}`;
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}.000${sign}${offH}:${offM}`;
 }
 
 function inferStartAtIso(lowerText, referenceNow = new Date(), utcOffsetMinutes = 0) {
@@ -531,42 +570,49 @@ function inferStartAtIso(lowerText, referenceNow = new Date(), utcOffsetMinutes 
     return null;
   }
 
-  const d = new Date(ref);
+  if (/(in an hour|in 1 hour)/.test(lowerText)) {
+    return formatIsoAtOffset(new Date(ref.getTime() + 3600000), utcOffsetMinutes);
+  }
+
+  let clock = instantToWallClock(ref, utcOffsetMinutes);
   if (/tomorrow/.test(lowerText)) {
-    d.setDate(d.getDate() + 1);
-  } else if (/(in an hour|in 1 hour)/.test(lowerText)) {
-    d.setMinutes(d.getMinutes() + 60);
-    return formatIsoAtOffset(d, utcOffsetMinutes);
+    clock = addWallClockDays(clock, 1);
   }
 
   const time = extractTimeFromText(lowerText);
   if (time) {
-    d.setHours(time.hours, time.minutes, 0, 0);
-    return formatIsoAtOffset(d, utcOffsetMinutes);
+    clock = { ...clock, hours: time.hours, minutes: time.minutes, seconds: 0 };
+    return formatIsoAtOffset(wallClockToInstant(clock, utcOffsetMinutes), utcOffsetMinutes);
   }
 
   if (/(tonight|this evening)/.test(lowerText)) {
-    d.setHours(20, 0, 0, 0);
-    return formatIsoAtOffset(d, utcOffsetMinutes);
+    clock = { ...clock, hours: 20, minutes: 0, seconds: 0 };
+    return formatIsoAtOffset(wallClockToInstant(clock, utcOffsetMinutes), utcOffsetMinutes);
   }
   if (/tomorrow/.test(lowerText)) {
-    d.setHours(19, 0, 0, 0);
-    return formatIsoAtOffset(d, utcOffsetMinutes);
+    clock = { ...clock, hours: 19, minutes: 0, seconds: 0 };
+    return formatIsoAtOffset(wallClockToInstant(clock, utcOffsetMinutes), utcOffsetMinutes);
   }
   return null;
 }
 
-function reconcileRelativeDate(parsed, lowerText, ref) {
-  const d = new Date(ref);
+function reconcileRelativeDate(parsed, lowerText, ref, utcOffsetMinutes = 0) {
+  const parsedClock = instantToWallClock(parsed, utcOffsetMinutes);
+  let clock = instantToWallClock(ref, utcOffsetMinutes);
   if (/tomorrow/.test(lowerText)) {
-    d.setDate(d.getDate() + 1);
+    clock = addWallClockDays(clock, 1);
   } else if (/(tonight|this evening|today)/.test(lowerText)) {
     // keep ref calendar day
   } else {
     return parsed;
   }
-  d.setHours(parsed.getHours(), parsed.getMinutes(), parsed.getSeconds(), 0);
-  return d;
+  clock = {
+    ...clock,
+    hours: parsedClock.hours,
+    minutes: parsedClock.minutes,
+    seconds: 0,
+  };
+  return wallClockToInstant(clock, utcOffsetMinutes);
 }
 
 function inferSummary(text) {
@@ -592,11 +638,17 @@ function normalizeStartAt(startAt, lowerText, referenceNow, utcOffsetMinutes = 0
     let parsed = new Date(startAt);
     if (!Number.isNaN(parsed.getTime())) {
       if (parsed.getTime() <= refMs && /tomorrow|tonight|today|this evening/i.test(lowerText)) {
-        parsed = reconcileRelativeDate(parsed, lowerText, ref);
+        parsed = reconcileRelativeDate(parsed, lowerText, ref, utcOffsetMinutes);
       }
       const time = extractTimeFromText(lowerText);
       if (time) {
-        parsed.setHours(time.hours, time.minutes, 0, 0);
+        const clock = {
+          ...instantToWallClock(parsed, utcOffsetMinutes),
+          hours: time.hours,
+          minutes: time.minutes,
+          seconds: 0,
+        };
+        parsed = wallClockToInstant(clock, utcOffsetMinutes);
       }
       if (parsed.getTime() > refMs) return formatIsoAtOffset(parsed, utcOffsetMinutes);
     }
