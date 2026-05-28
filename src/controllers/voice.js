@@ -150,23 +150,14 @@ router.post(
       const { transcript } = req.body;
       const parseCtx = buildParseContext(req.body);
       const parser = (config.voice.parser || 'bedrock').toLowerCase();
-      let provider = parser;
-      let parsed;
-
-      try {
-        if (parser === 'external') {
-          parsed = await generateViaExternalLlm(transcript, parseCtx);
-        } else if (parser === 'rule') {
-          parsed = generateViaRuleBased(transcript, parseCtx);
-        } else {
-          parsed = await generateViaBedrock(transcript, parseCtx);
-        }
-      } catch (err) {
-        if (parser !== 'external') throw err;
-        logger.warn({ err }, 'external voice parser failed; using rule-based fallback');
-        provider = 'rule-fallback';
-        parsed = generateViaRuleBased(transcript, parseCtx);
-      }
+      const aiOrder = parser === 'external'
+        ? ['external', 'bedrock']
+        : ['bedrock', 'external'];
+      const { provider, parsed } = await generateViaAiWithFallback(
+        transcript,
+        parseCtx,
+        aiOrder
+      );
 
       res.json({
         plan: parsed.plan,
@@ -180,6 +171,45 @@ router.post(
     }
   }
 );
+
+async function generateViaAiWithFallback(transcript, ctx, aiOrder) {
+  const errors = [];
+  for (const provider of aiOrder) {
+    try {
+      if (provider === 'external') {
+        return {
+          provider,
+          parsed: await generateViaExternalLlm(transcript, ctx),
+        };
+      }
+      if (provider === 'bedrock') {
+        return {
+          provider,
+          parsed: await generateViaBedrock(transcript, ctx),
+        };
+      }
+    } catch (err) {
+      errors.push({ provider, err });
+      logger.warn(
+        { err, provider },
+        `voice parser ${provider} failed`
+      );
+    }
+  }
+
+  const first = errors[0]?.err;
+  const second = errors[1]?.err;
+  const err = new Error(
+    'Could not parse plan: both AI providers failed. Please try again.'
+  );
+  err.status = 502;
+  err.detail = {
+    attempts: errors.map((e) => e.provider),
+    firstError: first?.message || null,
+    secondError: second?.message || null,
+  };
+  throw err;
+}
 
 async function streamToString(stream) {
   const chunks = [];
@@ -217,15 +247,17 @@ STRICT RULES:
 1. startAt: ISO-8601 datetime with offset when the transcript states a date or time (e.g. "tomorrow at 7pm"). Resolve "tomorrow", "tonight", "7:00 p.m." relative to Now. If no date/time is stated, use null. Do not default to 7pm.
 2. location: A real venue, business, address, or named place only. Use null for idioms ("at the door"), vague phrases ("somewhere", "here"), or when no real place was named.
 3. maxPeople: Set only when the transcript explicitly gives a headcount (e.g. "for 6 people"). Otherwise use -1 (unlimited). Never guess a number.
-4. title: Short catchy plan name (max 60 chars), not the full transcript.
-5. description: One friendly sentence (max 180 chars).
-6. vibeEmoji: Single emoji that best matches the activity.
+4. vibeName: Short vibe label matching vibeEmoji (max 24 chars), e.g. "Pizza Night", "Hoops", "Study Session".
+5. title: Short catchy plan name (max 60 chars), not the full transcript.
+6. description: One friendly sentence (max 180 chars).
+7. vibeEmoji: Single emoji that best matches the activity.
 
 Transcript: "${transcript}"
 
 Return ONLY this JSON object (no markdown, no extra keys):
 {
   "vibeEmoji": "single emoji",
+  "vibeName": "short vibe name",
   "title": "short plan title",
   "description": "one sentence",
   "startAt": "ISO-8601 with offset, or null",
@@ -275,26 +307,22 @@ async function generateViaExternalLlm(transcript, ctx) {
     throw err;
   }
   const t0 = Date.now();
+  const bodyContent = {
+    model: config.voice.llmModel,
+    temperature: 0.8,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: 'You are a precise JSON extractor. Follow all rules in the user message. Never invent attendee counts, venues, or calendar years. Return valid JSON only.' },
+      { role: 'user', content: extractionPrompt(transcript, ctx) },
+    ],
+  };
   const response = await fetch(`${config.voice.llmBaseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.voice.llmApiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: config.voice.llmModel,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a precise JSON extractor. Follow all rules in the user message. ' +
-            'Never invent attendee counts, venues, or calendar years. Return valid JSON only.',
-        },
-        { role: 'user', content: extractionPrompt(transcript, ctx) },
-      ],
-    }),
+    body: JSON.stringify(bodyContent),
     signal: AbortSignal.timeout(config.voice.llmTimeoutMs),
   });
   const payload = await response.json().catch(() => ({}));
@@ -329,7 +357,7 @@ function generateViaRuleBased(transcript, ctx) {
         vibeEmoji: mapped.emoji,
         title: inferTitle(text, mapped.vibe),
         description: inferSummary(text),
-        startAt: inferStartAtIso(lower, ctx.referenceNow),
+        startAt: inferStartAtIso(lower, ctx.referenceNow, ctx.utcOffsetMinutes),
         location: locationName,
         maxPeople,
       },
@@ -393,7 +421,8 @@ function normalizePlan(plan, transcript = '', ctx = buildParseContext()) {
   const startAt = normalizeStartAt(
     typeof plan?.startAt === 'string' ? plan.startAt : null,
     lower,
-    ref
+    ref,
+    ctx.utcOffsetMinutes
   );
   const maxPeople = sanitizeMaxPeople(maxPeopleRaw, text);
   return {
@@ -477,7 +506,24 @@ function extractTimeFromText(lowerText) {
   return { hours, minutes };
 }
 
-function inferStartAtIso(lowerText, referenceNow = new Date()) {
+function formatIsoAtOffset(date, utcOffsetMinutes = 0) {
+  const offset = Number.isFinite(utcOffsetMinutes) ? utcOffsetMinutes : 0;
+  const shifted = new Date(date.getTime() + offset * 60 * 1000);
+  const yyyy = shifted.getUTCFullYear();
+  const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(shifted.getUTCDate()).padStart(2, '0');
+  const hh = String(shifted.getUTCHours()).padStart(2, '0');
+  const mi = String(shifted.getUTCMinutes()).padStart(2, '0');
+  const ss = String(shifted.getUTCSeconds()).padStart(2, '0');
+  const msec = String(shifted.getUTCMilliseconds()).padStart(3, '0');
+  const sign = offset >= 0 ? '+' : '-';
+  const abs = Math.abs(offset);
+  const offH = String(Math.floor(abs / 60)).padStart(2, '0');
+  const offM = String(abs % 60).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}.${msec}${sign}${offH}:${offM}`;
+}
+
+function inferStartAtIso(lowerText, referenceNow = new Date(), utcOffsetMinutes = 0) {
   const ref = referenceNow instanceof Date ? referenceNow : new Date(referenceNow);
   if (!/(tomorrow|tonight|this evening|today|in an hour|in 1 hour|\d{1,2}(:\d{2})?\s*(a\.?m\.?|p\.?m\.?))/i.test(
     lowerText
@@ -490,22 +536,22 @@ function inferStartAtIso(lowerText, referenceNow = new Date()) {
     d.setDate(d.getDate() + 1);
   } else if (/(in an hour|in 1 hour)/.test(lowerText)) {
     d.setMinutes(d.getMinutes() + 60);
-    return d.toISOString();
+    return formatIsoAtOffset(d, utcOffsetMinutes);
   }
 
   const time = extractTimeFromText(lowerText);
   if (time) {
     d.setHours(time.hours, time.minutes, 0, 0);
-    return d.toISOString();
+    return formatIsoAtOffset(d, utcOffsetMinutes);
   }
 
   if (/(tonight|this evening)/.test(lowerText)) {
     d.setHours(20, 0, 0, 0);
-    return d.toISOString();
+    return formatIsoAtOffset(d, utcOffsetMinutes);
   }
   if (/tomorrow/.test(lowerText)) {
     d.setHours(19, 0, 0, 0);
-    return d.toISOString();
+    return formatIsoAtOffset(d, utcOffsetMinutes);
   }
   return null;
 }
@@ -538,7 +584,7 @@ function inferTitle(text, vibeLabel) {
   return short;
 }
 
-function normalizeStartAt(startAt, lowerText, referenceNow) {
+function normalizeStartAt(startAt, lowerText, referenceNow, utcOffsetMinutes = 0) {
   const ref = referenceNow instanceof Date ? referenceNow : new Date(referenceNow);
   const refMs = ref.getTime();
 
@@ -552,11 +598,11 @@ function normalizeStartAt(startAt, lowerText, referenceNow) {
       if (time) {
         parsed.setHours(time.hours, time.minutes, 0, 0);
       }
-      if (parsed.getTime() > refMs) return parsed.toISOString();
+      if (parsed.getTime() > refMs) return formatIsoAtOffset(parsed, utcOffsetMinutes);
     }
   }
 
-  return inferStartAtIso(lowerText, ref);
+  return inferStartAtIso(lowerText, ref, utcOffsetMinutes);
 }
 
 function sanitizeMaxPeople(value, transcript) {
