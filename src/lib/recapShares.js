@@ -13,6 +13,15 @@ const {
 const PLANS_TABLE = config.dynamo.plans;
 const TAPINS_TABLE = config.dynamo.tapIns;
 
+/** Plan start time has passed — Recaps tab (not My Plans). */
+function isPlanStarted(row) {
+  if (!row?.startAt) return false;
+  const startAt = Date.parse(row.startAt);
+  if (Number.isNaN(startAt)) return false;
+  return startAt <= Date.now();
+}
+
+/** @deprecated Prefer isPlanStarted for recap eligibility. */
 function isPlanPast(row) {
   if (!row) return false;
   if (row.status === 'expired' || row.status === 'cancelled') return true;
@@ -69,7 +78,7 @@ async function listRecapPlansForUser(userId) {
   const seen = new Set();
 
   for (const row of hostScan.Items || []) {
-    if (!isPlanPast(row)) continue;
+    if (!isPlanStarted(row)) continue;
     seen.add(row.planId);
     entries.push({
       row,
@@ -81,7 +90,7 @@ async function listRecapPlansForUser(userId) {
   for (const tap of tapInScan.Items || []) {
     if (seen.has(tap.planId)) continue;
     const row = await findPlanById(tap.planId);
-    if (!row || !isPlanPast(row) || row.hostId === userId) continue;
+    if (!row || !isPlanStarted(row) || row.hostId === userId) continue;
     seen.add(row.planId);
     entries.push({
       row,
@@ -126,7 +135,7 @@ async function listProfileRecaps(profileUserId, viewerId) {
   );
 
   for (const row of hostScan.Items || []) {
-    if (!isPlanPast(row)) continue;
+    if (!isPlanStarted(row)) continue;
     if (!canViewSharedRecap(viewerId, profileUserId, row, friendIds)) continue;
     entries.push({ row, recapRole: 'hosted' });
   }
@@ -147,7 +156,7 @@ async function listProfileRecaps(profileUserId, viewerId) {
   for (const tap of tapScan.Items || []) {
     if (seen.has(tap.planId)) continue;
     const row = await findPlanById(tap.planId);
-    if (!row || !isPlanPast(row) || row.hostId === profileUserId) continue;
+    if (!row || !isPlanStarted(row) || row.hostId === profileUserId) continue;
     if (!canViewSharedRecap(viewerId, profileUserId, row, friendIds)) continue;
     seen.add(row.planId);
     entries.push({ row, recapRole: 'attended' });
@@ -176,8 +185,8 @@ async function setProfileShare(userId, planId, sharedToProfile) {
     err.status = 404;
     throw err;
   }
-  if (!isPlanPast(plan)) {
-    const err = new Error('Only past plans can be shared to your profile');
+  if (!isPlanStarted(plan)) {
+    const err = new Error('Only started plans can be shared to your profile');
     err.status = 409;
     throw err;
   }
@@ -220,6 +229,7 @@ async function setProfileShare(userId, planId, sharedToProfile) {
 }
 
 module.exports = {
+  isPlanStarted,
   isPlanPast,
   canViewSharedRecap,
   listRecapPlansForUser,
