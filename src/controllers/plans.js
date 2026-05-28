@@ -34,6 +34,7 @@ const {
   notifyHostAttendeeLeft,
   notifyAttendeeRemovedByHost,
 } = require('../services/notifications');
+const { resolveEmojiLabels } = require('../lib/emojiLabels');
 
 const router = express.Router();
 const PLANS_TABLE = config.dynamo.plans;
@@ -182,6 +183,24 @@ router.get('/recaps', async (req, res, next) => {
     next(err);
   }
 });
+
+router.post(
+  '/vibe-labels',
+  body('emojis').isArray({ min: 1, max: 40 }),
+  body('emojis.*').isString().isLength({ min: 1, max: 8 }),
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      const labels = await resolveEmojiLabels(req.body.emojis);
+      res.json({ labels });
+    } catch (err) {
+      if (err.status === 422) {
+        return res.status(422).json({ error: err.message, raw: err.raw });
+      }
+      next(err);
+    }
+  }
+);
 
 router.patch(
   '/:id/profile-share',
