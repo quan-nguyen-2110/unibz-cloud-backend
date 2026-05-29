@@ -31,6 +31,7 @@ const { isPlanStarted, isPlanCancelled } = require('../lib/planPhotos');
 const {
   notifyPlanCancelled,
   notifyHostAttendeeJoined,
+  notifyHostSquadLocked,
   notifyHostAttendeeLeft,
   notifyAttendeeRemovedByHost,
 } = require('../services/notifications');
@@ -111,6 +112,7 @@ const createValidators = [
   body('source').optional().isIn(['manual', 'voice', 'suggestion']),
   body('transcript').optional().isString().isLength({ max: 5000 }),
   body('expiresInMinutes').optional().isInt({ min: 15, max: 1440 }),
+  body('durationMinutes').optional({ nullable: true }).isInt({ min: 5, max: 1440 }),
   body('visibility').optional().isIn(['public', 'private']),
   handleValidation,
 ];
@@ -135,7 +137,7 @@ router.post('/', createValidators, async (req, res, next) => {
 
 router.get(
   '/feed',
-  query('status').optional().isIn(['active', 'locked', 'completed']),
+  query('status').optional().isIn(['active', 'locked', 'ongoing', 'completed']),
   query('limit').optional().isInt({ min: 1, max: 50 }),
   query('offset').optional().isInt({ min: 0, max: 500 }),
   handleValidation,
@@ -155,7 +157,7 @@ router.get(
 
 router.get(
   '/',
-  query('status').optional().isIn(['active', 'locked', 'completed']),
+  query('status').optional().isIn(['active', 'locked', 'ongoing', 'completed']),
   query('limit').optional().isInt({ min: 1, max: 50 }),
   handleValidation,
   async (req, res, next) => {
@@ -333,6 +335,9 @@ router.post(
           })
         );
         broadcast('planLocked', { planId, tapInCount: newCount });
+        if (plan.hostId) {
+          await notifyHostSquadLocked({ plan, hostId: plan.hostId });
+        }
       }
 
       res.json({ squadLocked });
@@ -384,6 +389,11 @@ router.delete(
       if (!plan) return res.status(404).json({ error: 'Plan not found' });
       if (plan.status === 'locked') {
         return res.status(409).json({ error: 'Plan is locked — cannot leave' });
+      }
+      if (isPlanStarted(plan)) {
+        return res
+          .status(409)
+          .json({ error: 'Plan has already started — cannot leave' });
       }
 
       await removeTapInForUser(plan, userId);
@@ -447,6 +457,67 @@ router.delete(
   }
 );
 
+// Host manually locks an open plan before it starts. A locked plan accepts no
+// new tap-ins and attendees can't leave (same status the squad reaches when it
+// fills up), but the host can still remove attendees.
+router.post(
+  '/:id/lock',
+  param('id').isUUID(),
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      const userId = getUserId(req);
+      const planId = req.params.id;
+
+      const plan = await findPlanById(planId);
+      if (!plan) return res.status(404).json({ error: 'Plan not found' });
+      if (plan.hostId !== userId) {
+        return res.status(403).json({ error: 'Only the host can lock the plan' });
+      }
+      if (isPlanCancelled(plan)) {
+        return res.status(409).json({ error: 'Plan is cancelled' });
+      }
+      if (isPlanStarted(plan)) {
+        return res
+          .status(409)
+          .json({ error: 'Plan has already started — cannot lock' });
+      }
+      if (plan.status === 'locked') {
+        const current = await hydratePlan(plan, { includePhotos: true });
+        return res.json({ plan: current, alreadyLocked: true });
+      }
+      if (plan.status !== 'active') {
+        return res
+          .status(409)
+          .json({ error: 'Only active plans can be locked' });
+      }
+
+      await ddb.send(
+        new UpdateCommand({
+          TableName: PLANS_TABLE,
+          Key: { planId, createdAt: plan.createdAt },
+          UpdateExpression: 'SET #st = :locked',
+          ConditionExpression: '#st = :active',
+          ExpressionAttributeNames: { '#st': 'status' },
+          ExpressionAttributeValues: { ':locked': 'locked', ':active': 'active' },
+        })
+      );
+
+      const updated = await findPlanById(planId);
+      const apiPlan = await hydratePlan(updated, { includePhotos: true });
+      broadcast('planUpdated', { plan: apiPlan });
+      res.json({ plan: apiPlan });
+    } catch (err) {
+      if (err.name === 'ConditionalCheckFailedException') {
+        return res
+          .status(409)
+          .json({ error: 'Plan status changed — please try again' });
+      }
+      next(err);
+    }
+  }
+);
+
 const updateValidators = [
   param('id').isUUID(),
   body('title').optional().trim().notEmpty().isLength({ max: 200 }),
@@ -457,6 +528,7 @@ const updateValidators = [
   body('activities').optional().isArray(),
   body('location').optional().isString().isLength({ max: 200 }),
   body('gameName').optional().isString().isLength({ max: 100 }),
+  body('durationMinutes').optional({ nullable: true }).isInt({ min: 5, max: 1440 }),
   body('visibility').optional().isIn(['public', 'private']),
   handleValidation,
 ];
@@ -514,6 +586,13 @@ router.put('/:id', updateValidators, async (req, res, next) => {
       sets.push('startAt = :startAt');
       values[':startAt'] = req.body.startAt;
     }
+    if (req.body.durationMinutes !== undefined) {
+      sets.push('durationMinutes = :durationMinutes');
+      values[':durationMinutes'] =
+        typeof req.body.durationMinutes === 'number'
+          ? req.body.durationMinutes
+          : null;
+    }
     if (req.body.threshold !== undefined) {
       const threshold = req.body.threshold;
       const tapInCount = plan.tapInCount ?? 0;
@@ -570,6 +649,11 @@ router.delete(
       }
       if (plan.status === 'cancelled') {
         return res.json({ success: true, alreadyCancelled: true });
+      }
+      if (isPlanStarted(plan)) {
+        return res
+          .status(409)
+          .json({ error: 'Plan has already started — cannot cancel' });
       }
 
       const tapInUserIds = await tapInUserIdsForPlan(planId);

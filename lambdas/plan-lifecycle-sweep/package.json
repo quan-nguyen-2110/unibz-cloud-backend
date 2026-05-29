@@ -1,0 +1,8 @@
+{
+  "name": "squadup-lambda-plan-lifecycle-sweep",
+  "version": "1.0.0",
+  "description": "Hourly EventBridge-scheduled Lambda that advances plans active/locked -> ongoing -> completed based on start time and duration.",
+  "main": "index.js",
+  "private": true,
+  "license": "ISC"
+}

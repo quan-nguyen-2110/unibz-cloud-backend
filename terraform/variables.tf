@@ -65,6 +65,19 @@ variable "lab_role_name" {
   default     = "LabRole"
 }
 
+# Observability.
+variable "alarm_email" {
+  type        = string
+  description = "Optional email to subscribe to the CloudWatch alarms SNS topic (requires confirmation)"
+  default     = ""
+}
+
+variable "log_retention_days" {
+  type        = number
+  description = "Days to retain ALB access logs and VPC flow logs in the S3 logs bucket"
+  default     = 14
+}
+
 # Voice plan generation (OpenRouter). Set voice_llm_api_key in secrets.auto.tfvars (gitignored).
 variable "voice_parser" {
   type        = string
@@ -91,5 +104,5 @@ variable "voice_llm_api_key" {
   type        = string
   description = "OpenRouter API key (required when voice_parser=external)"
   sensitive   = true
-  default     = "sk-or-v1-...."
+  default     = "sk-or-v1-..."
 }

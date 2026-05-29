@@ -137,6 +137,35 @@ async function notifyHostAttendeeJoined({ plan, hostId, attendeeId }) {
 }
 
 /**
+ * Notify the host that their squad just filled up and the plan locked
+ * (persist + realtime to host only).
+ */
+async function notifyHostSquadLocked({ plan, hostId }) {
+  if (!hostId) return null;
+
+  const planTitle = plan.title?.trim() || 'your plan';
+  const body = `Your squad for "${planTitle}" is full — the plan is locked in!`;
+
+  const notification = await createNotification({
+    userId: hostId,
+    type: 'plan_locked',
+    planId: plan.planId,
+    title: 'Squad locked',
+    body,
+    metadata: { planTitle },
+  });
+
+  sendToUser(hostId, 'squadLocked', {
+    planId: plan.planId,
+    planTitle,
+    message: body,
+    notificationId: notification.id,
+  });
+
+  return notification;
+}
+
+/**
  * Notify the host that someone left their plan (persist + realtime to host only).
  */
 /**
@@ -284,6 +313,7 @@ async function markAllRead(userId) {
 module.exports = {
   notifyPlanCancelled,
   notifyHostAttendeeJoined,
+  notifyHostSquadLocked,
   notifyHostAttendeeLeft,
   notifyAttendeeRemovedByHost,
   notifyFriendRequest,

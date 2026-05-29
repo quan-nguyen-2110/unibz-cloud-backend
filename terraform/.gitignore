@@ -1,0 +1,5 @@
+secrets.auto.tfvars
+.terraform/
+
+# Lambda zip artifacts produced by archive_file
+build/

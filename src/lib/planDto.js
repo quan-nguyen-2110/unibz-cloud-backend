@@ -2,7 +2,7 @@
 
 /** Maps DynamoDB plan rows + tap-in list to Flutter `SquadPlan` JSON. */
 
-const API_STATUSES = new Set(['active', 'locked', 'completed']);
+const API_STATUSES = new Set(['active', 'locked', 'ongoing', 'completed']);
 const API_SOURCES = new Set(['manual', 'voice', 'suggestion']);
 const API_VISIBILITY = new Set(['public', 'private']);
 
@@ -21,6 +21,7 @@ function canViewPlan(viewerId, row, friendIds) {
 function mapStatus(dbStatus) {
   if (dbStatus === 'locked') return 'locked';
   if (dbStatus === 'active') return 'active';
+  if (dbStatus === 'ongoing') return 'ongoing';
   if (dbStatus === 'expired' || dbStatus === 'cancelled') return 'completed';
   return API_STATUSES.has(dbStatus) ? dbStatus : 'active';
 }
@@ -64,6 +65,8 @@ function toApiPlan(row, tapInUserIds = [], photos = [], extra = {}) {
     location,
     startAt: row.startAt || row.createdAt,
     threshold: row.threshold ?? row.maxAttendees ?? 2,
+    durationMinutes:
+      typeof row.durationMinutes === 'number' ? row.durationMinutes : null,
     status: mapStatus(row.status),
     source: API_SOURCES.has(row.source) ? row.source : 'manual',
     transcript: row.transcript ?? null,
@@ -85,6 +88,8 @@ function toApiPlan(row, tapInUserIds = [], photos = [], extra = {}) {
 
 function storageFromCreate(body, hostId, planId, nowIso) {
   const threshold = body.threshold ?? body.maxAttendees ?? 2;
+  const durationMinutes =
+    typeof body.durationMinutes === 'number' ? body.durationMinutes : null;
   const location = body.location ?? null;
   const expiresInMinutes = body.expiresInMinutes ?? 120;
   const expiresAt = new Date(
@@ -107,6 +112,7 @@ function storageFromCreate(body, hostId, planId, nowIso) {
     startAt: body.startAt,
     threshold,
     maxAttendees: threshold,
+    durationMinutes,
     tapInCount: 0,
     status: 'active',
     source: API_SOURCES.has(body.source) ? body.source : 'manual',

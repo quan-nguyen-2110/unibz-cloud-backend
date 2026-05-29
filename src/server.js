@@ -21,7 +21,8 @@ const planPhotosRoutes = require('./controllers/planPhotos');
 const notificationsRoutes = require('./controllers/notifications');
 const { initHub } = require('./hubs/feedHub');
 const { startVoiceProcessor } = require('./workers/voiceProcessor');
-const { startRecapSweep } = require('./workers/recapSweep');
+// Plan lifecycle (ongoing/completed) migrated to the
+// squadup-plan-lifecycle-sweep Lambda (EventBridge hourly).
 
 const app = express();
 
@@ -75,7 +76,6 @@ initHub(server);
 
 if (config.workers.enabled) {
   startVoiceProcessor();
-  startRecapSweep();
 }
 
 server.listen(config.port, () => {

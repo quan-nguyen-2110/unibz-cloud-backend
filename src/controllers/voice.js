@@ -247,10 +247,11 @@ STRICT RULES:
 1. startAt: ISO-8601 datetime in the user's timezone offset when the transcript states a date or time (e.g. "tomorrow at 7pm" -> tomorrow 19:00 in user offset). Resolve "tomorrow", "tonight", "7:00 p.m." relative to Now. If no date/time is stated, use null. Do not default to 7pm.
 2. location: A real venue, business, address, or named place only. Use null for idioms ("at the door"), vague phrases ("somewhere", "here"), or when no real place was named.
 3. maxPeople: Set only when the transcript explicitly gives a headcount (e.g. "for 6 people"). Otherwise use -1 (unlimited). Never guess a number.
-4. vibeName: Short vibe label matching vibeEmoji (max 24 chars), e.g. "Pizza Night", "Hoops", "Study Session".
-5. title: Short catchy plan name (max 60 chars), not the full transcript.
-6. description: One friendly sentence (max 180 chars).
-7. vibeEmoji: Single emoji that best matches the activity.
+4. durationMinutes: How long the whole event lasts in total minutes (integer 5-1440), ONLY when the transcript states a duration (e.g. "for two hours" -> 120, "a quick 30 minutes" -> 30, "all day" -> 480). Use null when no duration is stated. Never guess.
+5. vibeName: Short vibe label matching vibeEmoji (max 24 chars), e.g. "Pizza Night", "Hoops", "Study Session".
+6. title: Short catchy plan name (max 60 chars), not the full transcript.
+7. description: One friendly sentence (max 180 chars).
+8. vibeEmoji: Single emoji that best matches the activity.
 
 Transcript: "${transcript}"
 
@@ -262,7 +263,8 @@ Return ONLY this JSON object (no markdown, no extra keys):
   "description": "one sentence",
   "startAt": "ISO-8601 with offset, or null",
   "location": "venue name or null",
-  "maxPeople": -1 or integer 2-30
+  "maxPeople": -1 or integer 2-30,
+  "durationMinutes": null or integer 5-1440
 }`;
 }
 
@@ -360,6 +362,7 @@ function generateViaRuleBased(transcript, ctx) {
         startAt: inferStartAtIso(lower, ctx.referenceNow, ctx.utcOffsetMinutes),
         location: locationName,
         maxPeople,
+        durationMinutes: inferDurationMinutes(text),
       },
       text,
       ctx
@@ -425,6 +428,10 @@ function normalizePlan(plan, transcript = '', ctx = buildParseContext()) {
     ctx.utcOffsetMinutes
   );
   const maxPeople = sanitizeMaxPeople(maxPeopleRaw, text);
+  const durationMinutes = sanitizeDurationMinutes(
+    Number.isFinite(plan?.durationMinutes) ? plan.durationMinutes : null,
+    text
+  );
   return {
     vibeEmoji,
     vibeName: vibeName.slice(0, 40),
@@ -433,6 +440,7 @@ function normalizePlan(plan, transcript = '', ctx = buildParseContext()) {
     startAt,
     location,
     maxPeople,
+    durationMinutes,
   };
 }
 
@@ -662,6 +670,59 @@ function sanitizeMaxPeople(value, transcript) {
   if (fromText >= 0) return fromText;
   if (!Number.isFinite(value) || value < 0) return -1;
   return -1;
+}
+
+const MIN_DURATION = 5;
+const MAX_DURATION = 1440;
+
+function clampDuration(minutes) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  return clamp(Math.round(minutes), MIN_DURATION, MAX_DURATION);
+}
+
+const WORD_NUMBERS = {
+  a: 1,
+  an: 1,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  couple: 2,
+  few: 3,
+  half: 0.5,
+};
+
+function inferDurationMinutes(text) {
+  const lower = String(text || '').toLowerCase();
+  if (/\ball[\s-]?day\b/.test(lower)) return 480;
+  if (/\b(half an hour|half hour)\b/.test(lower)) return 30;
+
+  const hourMatch = lower.match(
+    /\b(\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|couple|few)\s*(?:of\s+)?(?:hours?|hrs?|h)\b/
+  );
+  if (hourMatch) {
+    const raw = hourMatch[1];
+    const value = WORD_NUMBERS[raw] ?? Number.parseFloat(raw);
+    if (Number.isFinite(value) && value > 0) return clampDuration(value * 60);
+  }
+
+  const minMatch = lower.match(
+    /\b(\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|couple|few|half)\s*(?:of\s+)?(?:minutes?|mins?|min)\b/
+  );
+  if (minMatch) {
+    const raw = minMatch[1];
+    const value = WORD_NUMBERS[raw] ?? Number.parseFloat(raw);
+    if (Number.isFinite(value) && value > 0) return clampDuration(value);
+  }
+  return null;
+}
+
+function sanitizeDurationMinutes(value, transcript) {
+  const fromText = inferDurationMinutes(transcript);
+  if (fromText != null) return fromText;
+  return clampDuration(value);
 }
 
 function inferVibeNameFromEmoji(emoji) {
