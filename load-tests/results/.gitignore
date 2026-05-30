@@ -1,0 +1,3 @@
+# k6 summary exports (gitignored)
+*.json
+!manifest.json

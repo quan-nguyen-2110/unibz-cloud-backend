@@ -1,0 +1,104 @@
+﻿{
+    "endedAt":  "2026-05-29T21:26:05.2431478Z",
+    "runs":  [
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks1_run1_20260529-223524.json",
+                     "runIndex":  1,
+                     "exitCode":  99,
+                     "taskCount":  1
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks1_run2_20260529-223836.json",
+                     "runIndex":  2,
+                     "exitCode":  0,
+                     "taskCount":  1
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks1_run3_20260529-224148.json",
+                     "runIndex":  3,
+                     "exitCode":  0,
+                     "taskCount":  1
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks1_run4_20260529-224500.json",
+                     "runIndex":  4,
+                     "exitCode":  0,
+                     "taskCount":  1
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks1_run5_20260529-224812.json",
+                     "runIndex":  5,
+                     "exitCode":  99,
+                     "taskCount":  1
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks2_run1_20260529-225247.json",
+                     "runIndex":  1,
+                     "exitCode":  0,
+                     "taskCount":  2
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks2_run2_20260529-225602.json",
+                     "runIndex":  2,
+                     "exitCode":  0,
+                     "taskCount":  2
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks2_run3_20260529-225914.json",
+                     "runIndex":  3,
+                     "exitCode":  0,
+                     "taskCount":  2
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks2_run4_20260529-230226.json",
+                     "runIndex":  4,
+                     "exitCode":  0,
+                     "taskCount":  2
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks2_run5_20260529-230539.json",
+                     "runIndex":  5,
+                     "exitCode":  0,
+                     "taskCount":  2
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks4_run1_20260529-231002.json",
+                     "runIndex":  1,
+                     "exitCode":  0,
+                     "taskCount":  4
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks4_run2_20260529-231315.json",
+                     "runIndex":  2,
+                     "exitCode":  0,
+                     "taskCount":  4
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks4_run3_20260529-231626.json",
+                     "runIndex":  3,
+                     "exitCode":  0,
+                     "taskCount":  4
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks4_run4_20260529-231938.json",
+                     "runIndex":  4,
+                     "exitCode":  0,
+                     "taskCount":  4
+                 },
+                 {
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\scale-out\\tasks4_run5_20260529-232250.json",
+                     "runIndex":  5,
+                     "exitCode":  0,
+                     "taskCount":  4
+                 }
+             ],
+    "taskCounts":  [
+                       1,
+                       2,
+                       4
+                   ],
+    "baseUrl":  "http://squadup-alb-363579702.us-east-1.elb.amazonaws.com",
+    "scenario":  "feed",
+    "startedAt":  "2026-05-29T20:34:48.0803656Z",
+    "repeats":  5
+}

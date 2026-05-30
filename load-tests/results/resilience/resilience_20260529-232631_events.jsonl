@@ -1,0 +1,6 @@
+{"detail":{"summary":"D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\resilience\\resilience_20260529-232631.json","killAfterSec":90},"type":"load_start","ts":"2026-05-29T21:26:32.3009314Z"}
+{"detail":{"runningBefore":2,"taskArn":"arn:aws:ecs:us-east-1:929376534255:task/squadup-cluster/3508e5b0286340e0a4765eaa6023b51f"},"type":"task_kill","ts":"2026-05-29T21:28:03.9368265Z"}
+{"detail":{"taskArn":"arn:aws:ecs:us-east-1:929376534255:task/squadup-cluster/3508e5b0286340e0a4765eaa6023b51f"},"type":"stop_task_sent","ts":"2026-05-29T21:28:05.4108765Z"}
+{"detail":{"unhealthy":0},"type":"alb_unhealthy_poll","ts":"2026-05-29T21:28:11.9658638Z"}
+{"detail":{"recoverySec":8,"circuitBreaker":"enabled with rollback"},"type":"recovery","ts":"2026-05-29T21:28:11.9901420Z"}
+{"detail":{"runningTasksAfter":1,"k6Exit":0},"type":"load_end","ts":"2026-05-29T21:31:35.6629162Z"}

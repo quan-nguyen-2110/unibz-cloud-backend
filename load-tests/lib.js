@@ -71,20 +71,21 @@ export function pickRandom(arr) {
 }
 
 export function planDraft(titleSuffix) {
-  return {
+  // Only send fields with real values: the API's optional string validators are
+  // not nullable, so sending `null` for description/gameName/transcript -> 400.
+  // durationMinutes is optional({ nullable: true }), so null is allowed there.
+  const draft = {
     vibeEmoji: pickRandom(VIBE_EMOJIS),
     title: `k6 ${titleSuffix}`,
     startAt: futureStartAt(),
     durationMinutes: pickRandom([60, 90, 120, null]),
     threshold: 4,
-    description: null,
     activities: [],
     location: 'Load test location',
-    gameName: null,
-    transcript: null,
     source: 'manual',
     visibility: 'public',
   };
+  return draft;
 }
 
 /** Body for POST /plans/vibe-labels using built-in emojis (no Bedrock cost). */
@@ -106,3 +107,16 @@ export const rampStages = [
   { duration: '1m', target: 50 },
   { duration: '30s', target: 0 },
 ];
+
+/** Steady load for resilience / failover experiments (~5 min). */
+export const resilienceStages = [
+  { duration: '30s', target: 20 },
+  { duration: '4m', target: 30 },
+  { duration: '30s', target: 0 },
+];
+
+/** Relaxed thresholds — we expect a brief error spike during task kill. */
+export const resilienceThresholds = {
+  http_req_failed: ['rate<0.15'],
+  http_req_duration: ['p(95)<5000', 'p(99)<10000'],
+};

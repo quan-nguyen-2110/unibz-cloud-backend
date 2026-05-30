@@ -1,0 +1,103 @@
+﻿{
+    "startedAt":  "2026-05-29T19:49:58.7100385Z",
+    "scenarios":  [
+                      "feed",
+                      "notifications",
+                      "healthz"
+                  ],
+    "endedAt":  "2026-05-29T20:34:07.0783571Z",
+    "baseUrl":  "http://squadup-alb-363579702.us-east-1.elb.amazonaws.com",
+    "repeats":  5,
+    "runs":  [
+                 {
+                     "scenario":  "feed",
+                     "runIndex":  1,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\feed_run1_20260529-214958.json",
+                     "exitCode":  99
+                 },
+                 {
+                     "scenario":  "feed",
+                     "runIndex":  2,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\feed_run2_20260529-215315.json",
+                     "exitCode":  99
+                 },
+                 {
+                     "scenario":  "feed",
+                     "runIndex":  3,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\feed_run3_20260529-215632.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "feed",
+                     "runIndex":  4,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\feed_run4_20260529-215950.json",
+                     "exitCode":  99
+                 },
+                 {
+                     "scenario":  "feed",
+                     "runIndex":  5,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\feed_run5_20260529-220308.json",
+                     "exitCode":  99
+                 },
+                 {
+                     "scenario":  "notifications",
+                     "runIndex":  1,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\notifications_run1_20260529-220624.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "notifications",
+                     "runIndex":  2,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\notifications_run2_20260529-220941.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "notifications",
+                     "runIndex":  3,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\notifications_run3_20260529-221257.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "notifications",
+                     "runIndex":  4,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\notifications_run4_20260529-221615.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "notifications",
+                     "runIndex":  5,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\notifications_run5_20260529-221932.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "healthz",
+                     "runIndex":  1,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\healthz_run1_20260529-222248.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "healthz",
+                     "runIndex":  2,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\healthz_run2_20260529-222504.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "healthz",
+                     "runIndex":  3,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\healthz_run3_20260529-222720.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "healthz",
+                     "runIndex":  4,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\healthz_run4_20260529-222935.json",
+                     "exitCode":  0
+                 },
+                 {
+                     "scenario":  "healthz",
+                     "runIndex":  5,
+                     "summary":  "D:\\UNIBZ\\LECTURES\\Cloud\\CloudProject\\squadUp-backend\\load-tests\\results\\statistical\\healthz_run5_20260529-223151.json",
+                     "exitCode":  0
+                 }
+             ]
+}
