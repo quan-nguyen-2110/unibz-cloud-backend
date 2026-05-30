@@ -62,3 +62,23 @@ output "lambda_functions" {
     plan_lifecycle_sweep = aws_lambda_function.plan_lifecycle_sweep.function_name
   }
 }
+
+output "ecs_cluster_name" {
+  description = "ECS cluster name (for load-test / resilience scripts)"
+  value       = aws_ecs_cluster.main.name
+}
+
+output "ecs_service_name" {
+  description = "ECS service name (for load-test / resilience scripts)"
+  value       = aws_ecs_service.api.name
+}
+
+output "alb_arn_suffix" {
+  description = "ALB ARN suffix for CloudWatch metrics"
+  value       = aws_lb.main.arn_suffix
+}
+
+output "target_group_arn_suffix" {
+  description = "Target group ARN suffix for CloudWatch metrics"
+  value       = aws_lb_target_group.api.arn_suffix
+}

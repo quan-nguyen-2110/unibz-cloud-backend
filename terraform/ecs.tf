@@ -108,5 +108,10 @@ resource "aws_ecs_service" "api" {
     rollback = true
   }
 
+  # Application Auto Scaling adjusts desired_count after apply; keep Terraform from fighting it.
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+
   depends_on = [aws_lb_listener.http]
 }

@@ -38,8 +38,39 @@ variable "ecs_memory" {
 }
 
 variable "ecs_desired_count" {
-  type    = number
-  default = 1
+  type        = number
+  description = "Initial/steady-state task count (autoscaling may adjust when enabled)"
+  default     = 4
+}
+
+variable "ecs_autoscaling_enabled" {
+  type        = bool
+  description = "Enable ECS target-tracking autoscaling (CPU + ALB requests per target)"
+  default     = true
+}
+
+variable "ecs_autoscaling_min_capacity" {
+  type        = number
+  description = "Minimum ECS task count when autoscaling is enabled"
+  default     = 1
+}
+
+variable "ecs_autoscaling_max_capacity" {
+  type        = number
+  description = "Maximum ECS task count when autoscaling is enabled"
+  default     = 4
+}
+
+variable "ecs_autoscaling_target_cpu" {
+  type        = number
+  description = "Target average CPU utilization (%) for ECS target-tracking policy"
+  default     = 60
+}
+
+variable "ecs_autoscaling_target_request_count" {
+  type        = number
+  description = "Target ALB requests per target per minute for ECS target-tracking policy"
+  default     = 1000
 }
 
 variable "cognito_callback_urls" {
